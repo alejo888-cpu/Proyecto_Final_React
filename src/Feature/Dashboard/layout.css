@@ -1,0 +1,151 @@
+/* Layout del Dashboard */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Sidebar */
+.sidebar-wrapper {
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 30;
+}
+
+.sidebar-open {
+  width: 280px;
+}
+
+.sidebar-closed {
+  width: 0;
+  overflow: hidden;
+}
+
+/* Overlay para móvil */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+
+/* Contenido principal */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: all 0.3s ease;
+}
+
+.content-with-sidebar {
+  margin-left: 0;
+}
+
+.content-full {
+  margin-left: 0;
+}
+
+/* Header */
+.main-content header {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+/* Main wrapper */
+.main-wrapper {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  min-height: calc(100vh - 8rem);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 30;
+  }
+
+  .sidebar-open {
+    width: 280px;
+  }
+
+  .main-content {
+    width: 100%;
+  }
+
+  .main-wrapper {
+    padding: 1rem;
+  }
+
+  .content-container {
+    padding: 1rem;
+    margin: 0;
+    border-radius: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-wrapper {
+    padding: 0.5rem;
+  }
+
+  .content-container {
+    padding: 1rem;
+    border-radius: 0.25rem;
+  }
+}
+
+/* Animaciones */
+.sidebar-wrapper,
+.main-content {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Estados de carga */
+.content-container.loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Estilos para contenido vacío */
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: #64748b;
+  text-align: center;
+}
+
+.empty-content h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #374151;
+}
+
+.empty-content p {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
