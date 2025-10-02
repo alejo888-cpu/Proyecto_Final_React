@@ -9,7 +9,8 @@ export const UserServices = {
             const { data } = await axios.post(server + "/api/auth/registrar", userData)
             return data
         } catch (error) {
-            throw error.response?.data || error.message
+            console.error("Error en CreateUser:", error.response || error);
+            throw error;
         }
     },
 

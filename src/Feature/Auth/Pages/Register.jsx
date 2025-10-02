@@ -36,7 +36,13 @@ export const Register = () => {
             })
             navigate("/")
         } catch (error) {
-            alert(error.response?.data?.message || "Error al registrar usuario");
+            console.error("Error completo:", error);
+            
+            if (error.response?.status === 500) {
+                alert(`Documento(${formData.id}) ya registrado`);
+            } else {
+                alert("Error al registrar usuario");
+            }
         }
     }
 
