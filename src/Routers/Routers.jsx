@@ -4,6 +4,7 @@ import { Register } from "../Feature/Auth/Pages/Register";
 import { Dashboard } from "../Feature/Dashboard/layout";
 import Productos from "../Feature/Dashboard/Pages/Productos/Productos";
 import Pedidos from "../Feature/Dashboard/Pages/Pedidos/Pedidos";
+import Usuarios from "../Feature/Dashboard/Pages/Users/Users";
 
 export const RouterApp = () => {
 
@@ -14,6 +15,7 @@ export const RouterApp = () => {
             <Route path="/Dashboard" element={<Dashboard />}>
                 <Route path="Productos" element={<Productos />} />
                 <Route path="Pedidos" element={<Pedidos />} />
+                <Route path="Usuarios" element={<Usuarios />} />
             </Route>
         </Routes>
     )

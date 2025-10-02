@@ -11,7 +11,6 @@ export const Login = () => {
 
     const navigate = useNavigate()
 
-    // Maneja cambios en los inputs
     const ChangeData = (e) => {
         const { name, value } = e.target
         setFormData({
@@ -20,12 +19,10 @@ export const Login = () => {
         })
     }
 
-    // Maneja login
     const handleLogin = async (e) => {
         e.preventDefault()
         try {
             const data = await UserServices.ListUser(formData)
-            console.log("Respuesta del servidor:", data)
 
             if (data.token) {
                 localStorage.setItem("token", data.token)

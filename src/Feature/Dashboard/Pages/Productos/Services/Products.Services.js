@@ -2,15 +2,17 @@ import axios from "axios";
 
 const server = "http://localhost:3000";
 
-// Función para obtener headers con token
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return token ? { 
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  } : {
+    'Content-Type': 'application/json'
+  };
 };
 
 export const ProductosServices = {
- 
-  // OBTENER TODOS LOS PRODUCTOS
  
   async obtenerProductos() {
     try {
@@ -24,8 +26,6 @@ export const ProductosServices = {
     }
   },
 
-  // OBTENER PRODUCTO POR ID
-  
   async obtenerProductoPorId(idProducto) {
     try {
       const response = await axios.get(
@@ -41,7 +41,6 @@ export const ProductosServices = {
     }
   },
 
-  // CREAR PRODUCTO
   async crearProducto(producto) {
     try {
       const response = await axios.post(server + "/api/productos", producto, {
@@ -49,13 +48,12 @@ export const ProductosServices = {
       });
       return response.data;
     } catch (error) {
-      console.error("Error al crear producto:", error);
+      console.error("❌ Error al crear producto:", error);
+      console.error("📊 Status:", error.response?.status);
+      console.error("📝 Mensaje:", error.response?.data);
       throw error;
     }
   },
-
-  
-  // ACTUALIZAR PRODUCTO
 
   async actualizarProducto(idProducto, producto) {
     try {
@@ -73,8 +71,6 @@ export const ProductosServices = {
     }
   },
 
-  // ELIMINAR PRODUCTO
-  
   async eliminarProducto(idProducto) {
     try {
       const response = await axios.delete(

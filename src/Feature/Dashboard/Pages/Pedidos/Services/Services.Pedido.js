@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const server = "http://localhost:3000"; // Cambia según tu backend
+const server = "http://localhost:3000";
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem("token")
@@ -15,7 +15,6 @@ const getHeaders = () => ({
 })
 
 export const ServicioPedidos = {
-    // Obtener todos los pedidos
     obtenerPedidos: async () => {
         const { data } = await axios.get(`${server}/api/pedidos`, {
             headers: getHeaders(),
@@ -23,7 +22,6 @@ export const ServicioPedidos = {
         return data
     },
 
-    // Obtener un pedido por ID
     obtenerPedidoPorId: async (idPedido) => {
         const { data } = await axios.get(`${server}/api/pedidos/${idPedido}`, {
             headers: getHeaders(),
@@ -31,7 +29,6 @@ export const ServicioPedidos = {
         return data
     },
 
-    // Crear un pedido
     crearPedido: async (pedido) => {
         const { data } = await axios.post(`${server}/api/pedidos`, pedido, {
             headers: getHeaders(),
@@ -39,7 +36,6 @@ export const ServicioPedidos = {
         return data
     },
 
-    // Actualizar un pedido por ID
     actualizarPedido: async (idPedido, pedido) => {
         const { data } = await axios.put(`${server}/api/pedidos/${idPedido}`, pedido, {
             headers: getHeaders(),

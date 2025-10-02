@@ -1,50 +1,45 @@
-import { useState, useEffect } from "react";
-import { ServicioPedidos } from "./Services/Services.Pedido.js";
-import { Plus, Eye, Pencil, X } from "lucide-react";
+import { useState, useEffect } from "react"
+import { ServicioPedidos } from "./Services/Services.Pedido.js"
+import { ProductosServices } from "../Productos/Services/Products.Services.js"
+import { Plus, Eye, Pencil, X } from "lucide-react"
 
 const Pedidos = () => {
-    const [pedidos, setPedidos] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [pedidos, setPedidos] = useState([])
+    const [loading, setLoading] = useState(true)
 
-    // Modales
-    const [showAddModal, setShowAddModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
-    const [showViewModal, setShowViewModal] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false)
+    const [showEditModal, setShowEditModal] = useState(false)
+    const [showViewModal, setShowViewModal] = useState(false)
+    const [selectedPedido, setSelectedPedido] = useState(null)
 
-    // Pedido seleccionado
-    const [selectedPedido, setSelectedPedido] = useState(null);
-
-    // Formulario
     const [formData, setFormData] = useState({
         idPedido: "",
         idUsuario: "",
         estado: "activo",
         detalles: [],
-    });
+    })
 
-    // Cargar pedidos al inicio
     useEffect(() => {
         const fetchPedidos = async () => {
             try {
                 const data = await ServicioPedidos.obtenerPedidos();
-                setPedidos(data);
+                setPedidos(data)
             } catch (err) {
-                console.error("Error cargando pedidos:", err);
+                console.error("Error cargando pedidos:", err)
             } finally {
-                setLoading(false);
+                setLoading(false)
             }
-        };
-        fetchPedidos();
-    }, []);
+        }
+        fetchPedidos()
+    }, [])
 
-    // -------------------------
-    // Funciones auxiliares
-    // -------------------------
-    const calculateTotal = () =>
-        formData.detalles.reduce(
+
+    const calculateTotal = () => {
+        return formData.detalles.reduce(
             (sum, d) => sum + Number(d.cantidad) * Number(d.precioUnitario),
             0
-        );
+        )
+    }
 
     const handleAddDetalle = () => {
         setFormData({
@@ -53,25 +48,48 @@ const Pedidos = () => {
                 ...formData.detalles,
                 { idProducto: "", cantidad: 1, precioUnitario: 0 },
             ],
-        });
-    };
+        })
+    }
 
-    const handleDetalleChange = (i, field, value) => {
-        const updated = [...formData.detalles];
-        updated[i][field] = value;
-        setFormData({ ...formData, detalles: updated });
-    };
+    const handleDetalleChange = async (i, field, value) => {
+        const updated = [...formData.detalles]
+        updated[i][field] = value
+
+        if (field === "idProducto" && value.trim() !== "") {
+            try {
+                const producto = await ProductosServices.obtenerProductoPorId(value)
+                updated[i]["precioUnitario"] = producto.precio || 0
+            } catch (error) {
+                console.error("Error al obtener producto:", error)
+                updated[i]["precioUnitario"] = 0
+            }
+        }
+
+        setFormData({ ...formData, detalles: updated })
+    }
 
     const handleRemoveDetalle = (i) => {
         setFormData({
             ...formData,
             detalles: formData.detalles.filter((_, idx) => idx !== i),
-        });
-    };
+        })
+    }
 
-    // -------------------------
-    // CRUD
-    // -------------------------
+    const generarSiguienteId = () => {
+        if (pedidos.length === 0) {
+            return "1"
+        }
+
+        const idsNumericos = pedidos
+            .map(p => parseInt(p.idPedido))
+            .filter(id => !isNaN(id))
+            .sort((a, b) => b - a)
+
+        const maxId = idsNumericos.length > 0 ? idsNumericos[0] : 0
+        return String(maxId + 1)
+    }
+
+
     const handleSubmitAdd = async () => {
         try {
             const nuevo = {
@@ -79,13 +97,13 @@ const Pedidos = () => {
                 total: calculateTotal(),
                 createdAt: new Date(),
             };
-            const creado = await ServicioPedidos.crearPedido(nuevo);
-            setPedidos([...pedidos, creado]);
-            setShowAddModal(false);
+            const creado = await ServicioPedidos.crearPedido(nuevo)
+            setPedidos([...pedidos, creado])
+            setShowAddModal(false)
         } catch (err) {
-            console.error("Error creando pedido:", err);
+            console.error("Error creando pedido:", err)
         }
-    };
+    }
 
     const handleSubmitEdit = async () => {
         try {
@@ -114,9 +132,7 @@ const Pedidos = () => {
         }
     };
 
-    // -------------------------
-    // Render
-    // -------------------------
+
     if (loading) return <p>Cargando pedidos...</p>;
 
     return (
@@ -125,8 +141,9 @@ const Pedidos = () => {
                 <h1 className="text-xl font-bold text-black">Gestión de Pedidos</h1>
                 <button
                     onClick={() => {
+                        const siguienteId = generarSiguienteId();
                         setFormData({
-                            idPedido: "",
+                            idPedido: siguienteId,
                             idUsuario: "",
                             estado: "activo",
                             detalles: [],
@@ -185,8 +202,6 @@ const Pedidos = () => {
                 </tbody>
             </table>
 
-            {/* MODAL: Agregar */}
-
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
                     <div className="bg-white rounded-lg w-[600px] p-6">
@@ -197,20 +212,18 @@ const Pedidos = () => {
                             </button>
                         </div>
 
-                        {/* Form */}
                         <div className="grid grid-cols-2 gap-4">
                             <input
                                 type="text"
-                                placeholder="ID Pedido"
-                                className="border p-2 rounded"
+                                placeholder="ID Pedido (Automático)"
+                                className="border p-2 rounded bg-gray-100 text-black"
                                 value={formData.idPedido}
-                                onChange={(e) =>
-                                    setFormData({ ...formData, idPedido: e.target.value })
-                                }
+                                readOnly
+                                title="ID generado automáticamente"
                             />
                             <input
                                 type="text"
-                                placeholder="ID Usuario"
+                                placeholder="Documento"
                                 className="border p-2 rounded"
                                 value={formData.idUsuario}
                                 onChange={(e) =>
@@ -225,7 +238,6 @@ const Pedidos = () => {
                                 }
                             >
                                 <option>activo</option>
-                                <option>cancelado</option>
                             </select>
                         </div>
 
@@ -250,15 +262,6 @@ const Pedidos = () => {
                                         handleDetalleChange(i, "cantidad", e.target.value)
                                     }
                                 />
-                                <input
-                                    type="number"
-                                    min="0"
-                                    className="border p-2 rounded"
-                                    value={d.precioUnitario}
-                                    onChange={(e) =>
-                                        handleDetalleChange(i, "precioUnitario", e.target.value)
-                                    }
-                                />
                                 <div className="flex items-center justify-between">
                                     <span className="font-semibold">
                                         ${(d.cantidad * d.precioUnitario).toFixed(2)}
@@ -267,7 +270,6 @@ const Pedidos = () => {
                                         onClick={() => handleRemoveDetalle(i)}
                                         className="text-red-600"
                                     >
-                                        <Trash2 size={16} />
                                     </button>
                                 </div>
                             </div>
@@ -293,8 +295,6 @@ const Pedidos = () => {
                     </div>
                 </div>
             )}
-
-            {/* MODAL: Ver Detalles */}
 
             {showViewModal && selectedPedido && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
@@ -351,13 +351,11 @@ const Pedidos = () => {
                 </div>
             )}
 
-            {/* MODAL: Editar */}
-
             {showEditModal && (
                 <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
                     <div className="bg-white rounded-lg w-[600px] p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Editar Pedido (PUT)</h2>
+                            <h2 className="text-xl font-bold text-black">Editar Pedido (PUT)</h2>
                             <button onClick={() => setShowEditModal(false)}>
                                 <X size={20} />
                             </button>
@@ -366,13 +364,13 @@ const Pedidos = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <input
                                 type="text"
-                                className="border p-2 rounded"
+                                className="border p-2 rounded text-black"
                                 value={formData.idPedido}
                                 disabled
                             />
                             <input
                                 type="text"
-                                className="border p-2 rounded"
+                                className="border p-2 rounded text-black"
                                 value={formData.idUsuario}
                                 onChange={(e) =>
                                     setFormData({ ...formData, idUsuario: e.target.value })
@@ -395,7 +393,7 @@ const Pedidos = () => {
                             <div key={i} className="grid grid-cols-4 gap-2 mt-2">
                                 <input
                                     type="text"
-                                    className="border p-2 rounded"
+                                    className="border p-2 rounded text-black"
                                     value={d.idProducto}
                                     onChange={(e) =>
                                         handleDetalleChange(i, "idProducto", e.target.value)
@@ -403,7 +401,7 @@ const Pedidos = () => {
                                 />
                                 <input
                                     type="number"
-                                    className="border p-2 rounded"
+                                    className="border p-2 rounded text-black"
                                     value={d.cantidad}
                                     onChange={(e) =>
                                         handleDetalleChange(i, "cantidad", e.target.value)
@@ -411,7 +409,7 @@ const Pedidos = () => {
                                 />
                                 <input
                                     type="number"
-                                    className="border p-2 rounded"
+                                    className="border p-2 rounded text-black"
                                     value={d.precioUnitario}
                                     onChange={(e) =>
                                         handleDetalleChange(i, "precioUnitario", e.target.value)
@@ -425,7 +423,6 @@ const Pedidos = () => {
                                         onClick={() => handleRemoveDetalle(i)}
                                         className="text-red-600"
                                     >
-                                        <Trash2 size={16} />
                                     </button>
                                 </div>
                             </div>

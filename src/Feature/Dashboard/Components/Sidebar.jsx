@@ -14,7 +14,6 @@ export const Sidebar = () => {
         return location.pathname === path;
     }
 
-    // Función para obtener las clases de un enlace
     const getLinkClasses = (path) => {
         const baseClasses = `flex items-center ${open ? 'gap-3' : 'justify-center'} p-3 rounded-lg transition-colors`
         const activeClasses = isActive(path)
@@ -26,7 +25,6 @@ export const Sidebar = () => {
     return (
         <div className={`${open ? "w-64" : "w-20"} bg-white h-screen shadow-md transition-all duration-300 flex flex-col flex-shrink-0`}>
 
-            {/* Header con Logo y Toggle */}
             <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                     <button
@@ -38,7 +36,6 @@ export const Sidebar = () => {
                 </div>
             </div>
 
-            {/* Navegación Principal */}
             <nav className="flex-1 py-4">
                 <div className={`${open ? 'px-3' : 'px-2'} space-y-1`}>
                     <Link to="/dashboard" className={getLinkClasses('/dashboard')}>
@@ -55,9 +52,13 @@ export const Sidebar = () => {
                         <FileText size={20} />
                         {open && <span>Pedidos</span>}
                     </Link>
+
+                    <Link to="/dashboard/Usuarios" className={getLinkClasses('/dashboard/Usuarios')}>
+                        <FileText size={20} />
+                        {open && <span>Usuarios</span>}
+                    </Link>
                 </div>
 
-                {/* Sección de configuración */}
                 <div className="mt-6 pt-6 border-t border-gray-200">
                     <div className={`${open ? 'px-3' : 'px-2'} space-y-1`}>
                         <Link to="/dashboard/alertas" className={getLinkClasses('/dashboard/alertas')}>
@@ -73,9 +74,7 @@ export const Sidebar = () => {
                 </div>
             </nav>
 
-            {/* Footer con Usuario */}
-            <div className="border-t border-gray-200 p-4">
-                {/* Botón de cerrar sesión */}
+            <div className="p-4 border-t border-gray-700">
                 <button
                     onClick={handleLogout}
                     className={`w-full flex items-center ${open ? 'gap-2 px-3' : 'justify-center px-1'} py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors border border-red-200`}

@@ -29,6 +29,7 @@ function Productos() {
 
     const manejarFormulario = async (e) => {
         e.preventDefault();
+        
         try {
             if (productoSeleccionado) {
                 await ProductosServices.actualizarProducto(productoSeleccionado.idProducto, formulario);
@@ -37,14 +38,15 @@ function Productos() {
                 obtenerProductos();
                 setProductoSeleccionado(null);
             } else {
-                await ProductosServices.crearProducto(formulario);
+                const resultado = await ProductosServices.crearProducto(formulario);
                 alert("Producto creado correctamente");
                 setAbrirCrear(false);
                 obtenerProductos();
                 setProductoSeleccionado(null);
             }
         } catch (error) {
-            console.error(error);
+            console.error("❌ Error al procesar formulario:", error);
+            alert("Error: " + (error.response?.data?.message || error.message || "Error desconocido"));
         }
     };
 
@@ -76,7 +78,7 @@ function Productos() {
             <div className="min-h-screen text-black m-[50px]">
                 <div className="flex justify-between px-3 pb-6">
                     <h1 className="text-2xl font-semibold text-black">Administración de productos</h1>
-                    <div className="flex items-center bg-green-400 hover:bg-green-500 px-3 py-2 rounded-lg text-white font-bold cursor-pointer gap-1">
+                    <div className="flex items-center bg-black hover:bg-gray-800 px-3 py-2 rounded-lg text-white font-bold cursor-pointer gap-1">
                         <Plus />
                         <button type="button" onClick={() => setAbrirCrear(true)}>Nuevo Producto</button>
                     </div>
@@ -129,18 +131,17 @@ function Productos() {
                 </table>
             </div>
 
-            {/* Modal Crear */}
             {abrirCrear && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/70">
                     <div className="bg-white rounded-2xl w-96 p-6">
                         <h2 className="text-xl font-bold mb-6 text-black">Registrar nuevo producto</h2>
                         <form className="flex flex-col gap-3" onSubmit={manejarFormulario}>
-                            <input type="text" placeholder="ID" name="idProducto" onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
-                            <input type="text" placeholder="Nombre" name="nombre" onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
-                            <input type="text" placeholder="Descripción" name="descripcion" onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
-                            <input type="number" placeholder="Precio" name="precio" onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
-                            <input type="number" placeholder="Stock" name="stock" onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
-                            <input type="text" placeholder="Categoría" name="categoria" onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
+                            <input type="text" placeholder="ID" name="idProducto" value={formulario.idProducto} onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
+                            <input type="text" placeholder="Nombre" name="nombre" value={formulario.nombre} onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
+                            <input type="text" placeholder="Descripción" name="descripcion" value={formulario.descripcion} onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
+                            <input type="number" placeholder="Precio" name="precio" value={formulario.precio} onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
+                            <input type="number" placeholder="Stock" name="stock" value={formulario.stock} onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
+                            <input type="text" placeholder="Categoría" name="categoria" value={formulario.categoria} onChange={manejarInput} required className="border p-2 rounded-lg text-black" />
 
                             <div className="flex justify-center gap-3 mt-4">
                                 <button type="button" onClick={() => setAbrirCrear(false)} className="bg-gray-500 px-4 py-2 rounded-lg text-white">Cancelar</button>
@@ -151,7 +152,6 @@ function Productos() {
                 </div>
             )}
 
-            {/* Modal Editar */}
             {abrirEditar && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/70">
                     <div className="bg-white rounded-2xl w-96 p-6">

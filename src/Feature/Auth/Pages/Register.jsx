@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 export const Register = () => {
 
     const [formData, setFormData] = useState({
+        id: "",
         nombre: "",
         email: "",
         password: "",
@@ -25,16 +26,14 @@ export const Register = () => {
         e.preventDefault()
         try {
             const newUser = await UserServices.CreateUser(formData)
-            console.log("Usuario creado:", newUser)
             alert("Usuario registrado con éxito")
-
             setFormData({
+                id: "",
                 nombre: "",
                 email: "",
                 password: "",
                 rol: ""
             })
-
             navigate("/")
         } catch (error) {
             alert(error.response?.data?.message || "Error al registrar usuario");
@@ -47,6 +46,11 @@ export const Register = () => {
                 <div className="register-form-section">
                     <h2 className="register-title">Registro</h2>
                     <form onSubmit={handleSubmit} className="register-form">
+
+                        <div className="form-group">
+                            <label className="form-label">Documento:</label>
+                            <input type="text" name="id" value={formData.id} onChange={ChangeData} className="form-input" required />
+                        </div>
 
                         <div className="form-group">
                             <label className="form-label">Nombre:</label>
