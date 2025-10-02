@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { ServicioPedidos } from "./Services/Services.Pedido.js"
 import { ProductosServices } from "../Productos/Services/Products.Services.js"
+import { UsersServices } from "../Users/Services/Users.Services.js"
 import { Plus, Eye, Pencil, X, FileText } from "lucide-react"
 
 const customStyles = `
@@ -15,7 +16,6 @@ const customStyles = `
 .animation-delay-4000 { animation-delay: 4s; }
 `
 
-// Agregar estilos al documento
 if (typeof document !== 'undefined') {
     const styleSheet = document.createElement("style")
     styleSheet.type = "text/css"
@@ -25,6 +25,8 @@ if (typeof document !== 'undefined') {
 
 const Pedidos = () => {
     const [pedidos, setPedidos] = useState([])
+    const [productos, setProductos] = useState([])
+    const [usuarios, setUsuarios] = useState([])
     const [loading, setLoading] = useState(true)
 
     const [showAddModal, setShowAddModal] = useState(false)
@@ -40,17 +42,23 @@ const Pedidos = () => {
     })
 
     useEffect(() => {
-        const fetchPedidos = async () => {
+        const fetchData = async () => {
             try {
-                const data = await ServicioPedidos.obtenerPedidos();
-                setPedidos(data)
+                const [pedidosData, productosData, usuariosData] = await Promise.all([
+                    ServicioPedidos.obtenerPedidos(),
+                    ProductosServices.obtenerProductos(),
+                    UsersServices.obtenerUsuarios()
+                ]);
+                setPedidos(pedidosData)
+                setProductos(productosData)
+                setUsuarios(usuariosData)
             } catch (err) {
-                console.error("Error cargando pedidos:", err)
+                console.error("Error cargando datos:", err)
             } finally {
                 setLoading(false)
             }
         }
-        fetchPedidos()
+        fetchData()
     }, [])
 
 
@@ -66,22 +74,32 @@ const Pedidos = () => {
             ...formData,
             detalles: [
                 ...formData.detalles,
-                { idProducto: "", cantidad: 1, precioUnitario: 0 },
+                { idProducto: "", cantidad: 1, precioUnitario: 0, nombreProducto: "", stockDisponible: 0 },
             ],
         })
     }
 
-    const handleDetalleChange = async (i, field, value) => {
+    const handleDetalleChange = (i, field, value) => {
         const updated = [...formData.detalles]
         updated[i][field] = value
 
         if (field === "idProducto" && value.trim() !== "") {
-            try {
-                const producto = await ProductosServices.obtenerProductoPorId(value)
+            const producto = productos.find(p => p.idProducto === value)
+            if (producto) {
                 updated[i]["precioUnitario"] = producto.precio || 0
-            } catch (error) {
-                console.error("Error al obtener producto:", error)
+                updated[i]["nombreProducto"] = producto.nombre || ""
+                updated[i]["stockDisponible"] = producto.stock || 0
+            } else {
                 updated[i]["precioUnitario"] = 0
+                updated[i]["nombreProducto"] = ""
+                updated[i]["stockDisponible"] = 0
+            }
+        }
+
+        if (field === "cantidad") {
+            const producto = productos.find(p => p.idProducto === updated[i].idProducto)
+            if (producto && parseInt(value) > producto.stock) {
+                alert(`STOCK INSUFICIENTE\n\nProducto: ${producto.nombre}\nPor favor, reduce la cantidad o selecciona otro producto.`)
             }
         }
 
@@ -92,6 +110,17 @@ const Pedidos = () => {
         setFormData({
             ...formData,
             detalles: formData.detalles.filter((_, idx) => idx !== i),
+        })
+    }
+
+    const enrichDetallesWithProductNames = (detalles) => {
+        return detalles.map(detalle => {
+            const producto = productos.find(p => p.idProducto === detalle.idProducto)
+            return {
+                ...detalle,
+                nombreProducto: producto ? producto.nombre : "",
+                stockDisponible: producto ? producto.stock : 0
+            }
         })
     }
 
@@ -109,8 +138,67 @@ const Pedidos = () => {
         return String(maxId + 1)
     }
 
+    const validateStock = () => {
+        for (const detalle of formData.detalles) {
+            if (!detalle.idProducto) {
+                alert("❌ Error: Todos los productos deben estar seleccionados.")
+                return false
+            }
+
+            const producto = productos.find(p => p.idProducto === detalle.idProducto)
+            if (!producto) {
+                alert(`❌ Error: El producto ${detalle.idProducto} no existe.`)
+                return false
+            }
+
+            if (parseInt(detalle.cantidad) > producto.stock) {
+                alert(`⚠️ STOCK INSUFICIENTE\n\nProducto: ${producto.nombre}\nCantidad solicitada: ${detalle.cantidad}\nStock disponible: ${producto.stock}\n\nRevisa las cantidades antes de continuar.`)
+                return false
+            }
+        }
+        return true
+    }
+
+    const validateUser = () => {
+        if (!formData.idUsuario || formData.idUsuario.trim() === "") {
+            alert("❌ Error: Debes seleccionar un usuario.")
+            return false
+        }
+
+        // Buscar usuario por diferentes campos posibles
+        const usuario = usuarios.find(u => 
+            u.id === formData.idUsuario || 
+            u.idUsuario === formData.idUsuario || 
+            u.documento === formData.idUsuario ||
+            u._id === formData.idUsuario
+        )
+        
+        if (!usuario) {
+            alert(`❌ USUARIO NO ENCONTRADO\n\nEl ID de usuario "${formData.idUsuario}" no existe en el sistema.\n\n• Verifica que el usuario esté registrado\n• O selecciona un usuario de la lista desplegable\n• Si es necesario, registra primero el usuario`)
+            return false
+        }
+        
+        return true
+    }
+
+    const getUserInfo = (idUsuario) => {
+        return usuarios.find(u => 
+            u.id === idUsuario || 
+            u.idUsuario === idUsuario || 
+            u.documento === idUsuario ||
+            u._id === idUsuario
+        )
+    }
+
+    const validateForm = () => {
+        if (!validateUser()) return false
+        if (!validateStock()) return false
+        return true
+    }
 
     const handleSubmitAdd = async () => {
+        if (!validateForm()) return;
+
         try {
             const nuevo = {
                 ...formData,
@@ -126,6 +214,8 @@ const Pedidos = () => {
     }
 
     const handleSubmitEdit = async () => {
+        if (!validateForm()) return;
+
         try {
             const actualizado = {
                 ...formData,
@@ -173,29 +263,29 @@ const Pedidos = () => {
                 <div className="absolute top-1/2 left-1/2 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
             </div>
 
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                    <div>
-                        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Gestión de Pedidos</h1>
-                        <p className="text-gray-600 mt-2 text-lg">💼 Administra todos los pedidos del sistema de forma eficiente</p>
-                    </div>
-                    <button
-                        onClick={() => {
-                            const siguienteId = generarSiguienteId();
-                            setFormData({
-                                idPedido: siguienteId,
-                                idUsuario: "",
-                                estado: "activo",
-                                detalles: [],
-                            });
-                            setShowAddModal(true);
-                        }}
-                        className="group relative flex items-center bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
-                    >
-                        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-300"></div>
-                        <Plus size={20} className="mr-2 group-hover:rotate-90 transition-transform duration-300" />
-                        <span className="font-semibold">✨ Nuevo Pedido</span>
-                    </button>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <div>
+                    <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Gestión de Pedidos</h1>
+                    <p className="text-gray-600 mt-2 text-lg">💼 Administra todos los pedidos del sistema de forma eficiente</p>
                 </div>
+                <button
+                    onClick={() => {
+                        const siguienteId = generarSiguienteId();
+                        setFormData({
+                            idPedido: siguienteId,
+                            idUsuario: "",
+                            estado: "activo",
+                            detalles: [],
+                        });
+                        setShowAddModal(true);
+                    }}
+                    className="group relative flex items-center bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1"
+                >
+                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-300"></div>
+                    <Plus size={20} className="mr-2 group-hover:rotate-90 transition-transform duration-300" />
+                    <span className="font-semibold">✨ Nuevo Pedido</span>
+                </button>
+            </div>
 
             {/* Tabla */}
             {/* Mobile Cards View */}
@@ -237,11 +327,10 @@ const Pedidos = () => {
                                         <p className="text-gray-600 text-sm">👤 {p.idUsuario}</p>
                                     </div>
                                 </div>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                    p.estado === 'activo' 
-                                        ? 'bg-green-100 text-green-700 border border-green-200' 
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.estado === 'activo'
+                                        ? 'bg-green-100 text-green-700 border border-green-200'
                                         : 'bg-red-100 text-red-700 border border-red-200'
-                                }`}>
+                                    }`}>
                                     {p.estado === 'activo' ? '✅ Activo' : '❌ Cancelado'}
                                 </span>
                             </div>
@@ -262,7 +351,11 @@ const Pedidos = () => {
                                     </button>
                                     <button
                                         onClick={() => {
-                                            setFormData(p);
+                                            const enrichedPedido = {
+                                                ...p,
+                                                detalles: enrichDetallesWithProductNames(p.detalles || [])
+                                            };
+                                            setFormData(enrichedPedido);
                                             setSelectedPedido(p);
                                             setShowEditModal(true);
                                         }}
@@ -338,11 +431,10 @@ const Pedidos = () => {
                                     <div className="text-sm text-gray-900">{p.idUsuario}</div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                                        p.estado === 'activo' 
-                                            ? 'bg-green-100 text-green-800' 
+                                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${p.estado === 'activo'
+                                            ? 'bg-green-100 text-green-800'
                                             : 'bg-red-100 text-red-800'
-                                    }`}>
+                                        }`}>
                                         {p.estado}
                                     </span>
                                 </td>
@@ -365,7 +457,11 @@ const Pedidos = () => {
                                         </button>
                                         <button
                                             onClick={() => {
-                                                setFormData(p);
+                                                const enrichedPedido = {
+                                                    ...p,
+                                                    detalles: enrichDetallesWithProductNames(p.detalles || [])
+                                                };
+                                                setFormData(enrichedPedido);
                                                 setSelectedPedido(p);
                                                 setShowEditModal(true);
                                             }}
@@ -390,7 +486,7 @@ const Pedidos = () => {
                                 <h2 className="text-2xl font-bold text-gray-900">🆕 Agregar Nuevo Pedido</h2>
                                 <p className="text-gray-600 mt-1">Crea un nuevo pedido en el sistema</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setShowAddModal(false)}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                             >
@@ -420,13 +516,37 @@ const Pedidos = () => {
                                     <input
                                         type="text"
                                         placeholder="Ingrese el documento del usuario"
-                                        className="w-full border-2 border-gray-200 focus:border-blue-500 p-3 rounded-lg text-gray-800 transition-colors"
+                                        className={`w-full border-2 p-3 rounded-lg text-gray-800 transition-colors ${
+                                            formData.idUsuario && !getUserInfo(formData.idUsuario) 
+                                                ? 'border-red-500 focus:border-red-500 bg-red-50' 
+                                                : 'border-gray-200 focus:border-blue-500'
+                                        }`}
                                         value={formData.idUsuario}
                                         onChange={(e) =>
                                             setFormData({ ...formData, idUsuario: e.target.value })
                                         }
                                         required
                                     />
+                                    {formData.idUsuario && (
+                                        <div className="mt-2">
+                                            {(() => {
+                                                const usuarioInfo = getUserInfo(formData.idUsuario)
+                                                return usuarioInfo ? (
+                                                    <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                        <p className="text-xs text-green-700 flex items-center">
+                                                            ✓ <span className="font-medium ml-1">{usuarioInfo.nombre || 'Usuario'}</span> 
+                                                            <span className="mx-1">-</span> 
+                                                            <span>{usuarioInfo.email || 'Sin email'}</span>
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
+                                                        <p className="text-xs text-red-600">❌ Usuario no encontrado en el sistema</p>
+                                                    </div>
+                                                )
+                                            })()}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div>
@@ -450,7 +570,7 @@ const Pedidos = () => {
                                 🛒 Detalles del Pedido
                                 <span className="ml-2 text-sm text-gray-500">({formData.detalles.length} productos)</span>
                             </h3>
-                            
+
                             {formData.detalles.length === 0 ? (
                                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                                     <p className="text-gray-500 mb-2">🛍️ No hay productos agregados</p>
@@ -459,32 +579,64 @@ const Pedidos = () => {
                             ) : (
                                 <div className="space-y-3">
                                     {formData.detalles.map((d, i) => (
-                                        <div key={i} className="bg-gray-50 p-4 rounded-lg border">
+                                        <div key={i} className={`p-4 rounded-lg border-2 ${d.cantidad > (d.stockDisponible || 0)
+                                                ? 'bg-red-50 border-red-200'
+                                                : 'bg-gray-50 border-gray-200'
+                                            }`}>
+                                            {d.cantidad > (d.stockDisponible || 0) && (
+                                                <div className="mb-3 p-2 bg-red-100 border border-red-300 rounded-lg">
+                                                    <p className="text-red-700 text-sm font-medium flex items-center">
+                                                        ⚠️ Cantidad excede el stock disponible ({d.stockDisponible || 0} unidades)
+                                                    </p>
+                                                </div>
+                                            )}
                                             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                                 <div>
-                                                    <label className="block text-xs font-medium text-gray-600 mb-1">ID Producto</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Ej: PROD001"
+                                                    <label className="block text-xs font-medium text-gray-600 mb-1">Producto</label>
+                                                    <select
                                                         className="w-full border-2 border-gray-200 focus:border-blue-500 p-2 rounded text-gray-800 transition-colors"
                                                         value={d.idProducto}
                                                         onChange={(e) =>
                                                             handleDetalleChange(i, "idProducto", e.target.value)
                                                         }
-                                                    />
+                                                    >
+                                                        <option value="">Selecciona un producto</option>
+                                                        {productos.map((producto) => (
+                                                            <option key={producto.idProducto} value={producto.idProducto}>
+                                                                {producto.nombre} - ${producto.precio} (Stock: {producto.stock})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {d.nombreProducto && (
+                                                        <p className="text-xs text-blue-600 mt-1">✓ {d.nombreProducto}</p>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-medium text-gray-600 mb-1">Cantidad</label>
                                                     <input
                                                         type="number"
                                                         min="1"
+                                                        max={d.stockDisponible || undefined}
                                                         placeholder="1"
-                                                        className="w-full border-2 border-gray-200 focus:border-blue-500 p-2 rounded text-gray-800 transition-colors"
+                                                        className={`w-full border-2 p-2 rounded text-gray-800 transition-colors ${d.cantidad > (d.stockDisponible || 0)
+                                                                ? 'border-red-500 focus:border-red-500 bg-red-50'
+                                                                : 'border-gray-200 focus:border-blue-500'
+                                                            }`}
                                                         value={d.cantidad}
                                                         onChange={(e) =>
                                                             handleDetalleChange(i, "cantidad", e.target.value)
                                                         }
                                                     />
+                                                    {d.stockDisponible > 0 && (
+                                                        <p className={`text-xs mt-1 ${d.cantidad > d.stockDisponible
+                                                                ? 'text-red-600'
+                                                                : d.stockDisponible < 5
+                                                                    ? 'text-orange-600'
+                                                                    : 'text-green-600'
+                                                            }`}>
+                                                            📦 Stock: {d.stockDisponible} unidades
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-medium text-gray-600 mb-1">Precio Unitario</label>
@@ -517,7 +669,7 @@ const Pedidos = () => {
                                 </div>
                             )}
                         </div>
-                        
+
                         <button
                             onClick={handleAddDetalle}
                             className="mt-4 w-full flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg transition-colors font-medium"
@@ -569,7 +721,7 @@ const Pedidos = () => {
                                 </h2>
                                 <p className="text-gray-600 mt-1">Información completa del pedido seleccionado</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setShowViewModal(false)}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                             >
@@ -620,11 +772,10 @@ const Pedidos = () => {
                         <div className="mb-6">
                             <div className="flex items-center space-x-3">
                                 <span className="text-gray-700 font-medium">Estado:</span>
-                                <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${
-                                    selectedPedido.estado === 'activo' 
-                                        ? 'bg-green-100 text-green-800 border-2 border-green-200' 
+                                <span className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-sm ${selectedPedido.estado === 'activo'
+                                        ? 'bg-green-100 text-green-800 border-2 border-green-200'
                                         : 'bg-red-100 text-red-800 border-2 border-red-200'
-                                }`}>
+                                    }`}>
                                     {selectedPedido.estado === 'activo' ? '✅ Activo' : '❌ Cancelado'}
                                 </span>
                             </div>
@@ -636,7 +787,7 @@ const Pedidos = () => {
                                 🛒 Productos del Pedido
                                 <span className="ml-2 text-sm text-gray-500">({selectedPedido.detalles.length} productos)</span>
                             </h3>
-                            
+
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
@@ -713,7 +864,7 @@ const Pedidos = () => {
                                 </h2>
                                 <p className="text-gray-600 mt-1">Modifica la información del pedido seleccionado</p>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setShowEditModal(false)}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                             >
@@ -743,13 +894,37 @@ const Pedidos = () => {
                                     <input
                                         type="text"
                                         placeholder="Ingrese el documento del usuario"
-                                        className="w-full border-2 border-gray-200 focus:border-orange-500 p-3 rounded-lg text-gray-800 transition-colors"
+                                        className={`w-full border-2 p-3 rounded-lg text-gray-800 transition-colors ${
+                                            formData.idUsuario && !getUserInfo(formData.idUsuario) 
+                                                ? 'border-red-500 focus:border-red-500 bg-red-50' 
+                                                : 'border-gray-200 focus:border-orange-500'
+                                        }`}
                                         value={formData.idUsuario}
                                         onChange={(e) =>
                                             setFormData({ ...formData, idUsuario: e.target.value })
                                         }
                                         required
                                     />
+                                    {formData.idUsuario && (
+                                        <div className="mt-2">
+                                            {(() => {
+                                                const usuarioInfo = getUserInfo(formData.idUsuario)
+                                                return usuarioInfo ? (
+                                                    <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                        <p className="text-xs text-green-700 flex items-center">
+                                                            ✓ <span className="font-medium ml-1">{usuarioInfo.nombre || 'Usuario'}</span> 
+                                                            <span className="mx-1">-</span> 
+                                                            <span>{usuarioInfo.email || 'Sin email'}</span>
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
+                                                        <p className="text-xs text-red-600">❌ Usuario no encontrado en el sistema</p>
+                                                    </div>
+                                                )
+                                            })()}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div>
@@ -774,7 +949,7 @@ const Pedidos = () => {
                                 ✏️ Editar Detalles del Pedido
                                 <span className="ml-2 text-sm text-gray-500">({formData.detalles.length} productos)</span>
                             </h3>
-                            
+
                             {formData.detalles.length === 0 ? (
                                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                                     <p className="text-gray-500 mb-2">🛍️ No hay productos agregados</p>
@@ -783,32 +958,64 @@ const Pedidos = () => {
                             ) : (
                                 <div className="space-y-3">
                                     {formData.detalles.map((d, i) => (
-                                        <div key={i} className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                        <div key={i} className={`p-4 rounded-lg border-2 ${d.cantidad > (d.stockDisponible || 0)
+                                                ? 'bg-red-50 border-red-200'
+                                                : 'bg-orange-50 border-orange-200'
+                                            }`}>
+                                            {d.cantidad > (d.stockDisponible || 0) && (
+                                                <div className="mb-3 p-2 bg-red-100 border border-red-300 rounded-lg">
+                                                    <p className="text-red-700 text-sm font-medium flex items-center">
+                                                        ⚠️ Cantidad excede el stock disponible ({d.stockDisponible || 0} unidades)
+                                                    </p>
+                                                </div>
+                                            )}
                                             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                                 <div>
-                                                    <label className="block text-xs font-medium text-gray-600 mb-1">ID Producto</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Ej: PROD001"
+                                                    <label className="block text-xs font-medium text-gray-600 mb-1">Producto</label>
+                                                    <select
                                                         className="w-full border-2 border-gray-200 focus:border-orange-500 p-2 rounded text-gray-800 transition-colors"
                                                         value={d.idProducto}
                                                         onChange={(e) =>
                                                             handleDetalleChange(i, "idProducto", e.target.value)
                                                         }
-                                                    />
+                                                    >
+                                                        <option value="">Selecciona un producto</option>
+                                                        {productos.map((producto) => (
+                                                            <option key={producto.idProducto} value={producto.idProducto}>
+                                                                {producto.nombre} - ${producto.precio} (Stock: {producto.stock})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {d.nombreProducto && (
+                                                        <p className="text-xs text-orange-600 mt-1">✓ {d.nombreProducto}</p>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-medium text-gray-600 mb-1">Cantidad</label>
                                                     <input
                                                         type="number"
                                                         min="1"
+                                                        max={d.stockDisponible || undefined}
                                                         placeholder="1"
-                                                        className="w-full border-2 border-gray-200 focus:border-orange-500 p-2 rounded text-gray-800 transition-colors"
+                                                        className={`w-full border-2 p-2 rounded text-gray-800 transition-colors ${d.cantidad > (d.stockDisponible || 0)
+                                                                ? 'border-red-500 focus:border-red-500 bg-red-50'
+                                                                : 'border-gray-200 focus:border-orange-500'
+                                                            }`}
                                                         value={d.cantidad}
                                                         onChange={(e) =>
                                                             handleDetalleChange(i, "cantidad", e.target.value)
                                                         }
                                                     />
+                                                    {d.stockDisponible > 0 && (
+                                                        <p className={`text-xs mt-1 ${d.cantidad > d.stockDisponible
+                                                                ? 'text-red-600'
+                                                                : d.stockDisponible < 5
+                                                                    ? 'text-orange-600'
+                                                                    : 'text-green-600'
+                                                            }`}>
+                                                            📦 Stock: {d.stockDisponible} unidades
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <label className="block text-xs font-medium text-gray-600 mb-1">Precio Unitario</label>
@@ -852,21 +1059,34 @@ const Pedidos = () => {
                             + Agregar
                         </button>
 
-                        <div className="flex justify-between items-center mt-4">
-                            <span className="font-bold">
-                                Total: ${calculateTotal().toFixed(2)}
-                            </span>
-                            <button
-                                onClick={handleSubmitEdit}
-                                className="bg-green-600 text-white px-4 py-2 rounded"
-                            >
-                                Actualizar
-                            </button>
+                        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                            <div className="text-center sm:text-left">
+                                <p className="text-sm text-gray-600">Total del Pedido</p>
+                                <span className="text-2xl font-bold text-green-600">
+                                    💰 ${calculateTotal().toFixed(2)}
+                                </span>
+                            </div>
+                            <div className="flex gap-3 w-full sm:w-auto">
+                                <button
+                                    onClick={() => setShowEditModal(false)}
+                                    className="flex-1 sm:flex-none px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleSubmitEdit}
+                                    disabled={!formData.idUsuario || formData.detalles.length === 0}
+                                    className="flex-1 sm:flex-none flex items-center justify-center bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg transition-all font-medium disabled:cursor-not-allowed"
+                                >
+                                    <Pencil size={18} className="mr-2" />
+                                    ✏️ Actualizar Pedido
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
-            </div>
+        </div>
     )
 }
 
